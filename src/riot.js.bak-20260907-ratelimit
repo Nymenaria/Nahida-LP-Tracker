@@ -1,0 +1,38 @@
+require('dotenv').config();
+
+const REGION_TO_CLUSTER = {
+  euw1: 'europe', eun1: 'europe', tr1: 'europe', ru: 'europe',
+  na1: 'americas', br1: 'americas', la1: 'americas', la2: 'americas',
+  kr: 'asia', jp1: 'asia', oc1: 'sea'
+};
+
+const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+async function fetchRiotWithRateLimit(url) {
+  await wait(1300);
+  const response = await fetch(url, { headers: { 'X-Riot-Token': process.env.RIOT_API_KEY } });
+  if (!response.ok) throw new Error(`Riot API Error: ${response.status}`);
+  return response.json();
+}
+
+async function getAccountData(gameName, tagLine, region) {
+  const cluster = REGION_TO_CLUSTER[region] || 'europe';
+  return await fetchRiotWithRateLimit(`https://${cluster}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}`);
+}
+
+async function getAccountByPuuid(puuid, region) {
+  const cluster = REGION_TO_CLUSTER[region] || 'europe';
+  return await fetchRiotWithRateLimit(`https://${cluster}.api.riotgames.com/riot/account/v1/accounts/by-puuid/${puuid}`);
+}
+
+async function getSoloQueueData(puuid, region) {
+  const leagues = await fetchRiotWithRateLimit(`https://${region}.api.riotgames.com/lol/league/v4/entries/by-puuid/${puuid}`);
+  return leagues.find(entry => entry.queueType === 'RANKED_SOLO_5x5') || null;
+}
+
+// NOUVEAU : Récupération des infos Summoner (pour l'icône)
+async function getSummonerData(puuid, region) {
+  return await fetchRiotWithRateLimit(`https://${region}.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/${puuid}`);
+}
+
+module.exports = { getAccountData, getAccountByPuuid, getSoloQueueData, getSummonerData };
